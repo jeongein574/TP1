@@ -10,7 +10,6 @@ currentTimeminute = f'0{currentTime.minute}' if currentTime.minute < 10 else cur
 year = 2023
 month = 11
 
-
 class MainPage:
     def __init__(self, width, height):
         self.width, self.height = width, height
@@ -19,6 +18,7 @@ class MainPage:
         self.planner = False
         self.calendar = False
         self.focus = False
+        self.taskAdd = False
         self.studyLabelNum = '00:25:00'
         self.studyLabel = 'Focus Time'
 
@@ -37,7 +37,6 @@ class MainPage:
         drawLabel(self.studyLabelNum, app.width*2/3, 140, size = 40, bold = True, font = 'monospace')
         drawLabel(f'Now   {currentTimehour}:{currentTimeminute}', app.width*2/3, 180, size = 14, font = 'monospace')
         drawRegularPolygon(app.width*2/3-10, 180, 5, 3, rotateAngle = 90, align = 'center')
-
 
         drawLabel('Timer', app.width/4, 300, size = 20, bold = self.timer, font = 'monospace')
         drawLabel('Planner', app.width/2, 300, size = 20, bold = self.planner, font = 'monospace')
@@ -61,6 +60,8 @@ class MainPage:
             self.focus = True
         if app.TimerPage.subjectAddPage == True:
             self.timer, self.planner, self.calendar = True, False, False
+        if app.CalendarPage.longestConsecutiveTime == True:
+            self.timer, self.planner, self.calendar = False, False, True
 
 class FocusTimePage:
     def __init__(self, width, height):
@@ -99,8 +100,8 @@ class FocusTimePage:
             buttonX, buttonY = self.buttonPositions[i]
             if buttonX - 35 <= mouseX <= buttonX + 35 and buttonY - 35 <= mouseY <= buttonY + 35:
                 while True:
-                    userinput = app.getTextInput('Enter a number between 0 and 60:')
-                    if userinput.isdigit() and 0 <= int(userinput) <= 60:
+                    userinput = app.getTextInput('Enter a number between 0 and 59:')
+                    if userinput.isdigit() and 0 <= int(userinput) <= 59:
                         if int(userinput) < 10 and userinput[0] != '0':
                             self.labels[i] = f'0{userinput}'
                         else:
@@ -113,10 +114,14 @@ class FocusTimePage:
 class CalendarPage:
     def __init__(self, width, height):
         self.width, self.height = width, height
+        self.longestConsecutiveTime = False
+        self.taskAdd = False
 
     def draw(self, app):
         drawRect(0, 330, app.width, app.height-330, fill='white')
         drawLine(app.width/2, 340, app.width/2, app.height-30, fill = rgb(200, 200, 200))
+
+        #calendar
         calendarView = calendar.month(year, month)
         lines = calendarView.split('\n')
         title = lines[0].strip()
@@ -128,6 +133,14 @@ class CalendarPage:
         drawLabel(title, 428, app.height/2-10, font = 'monospace', size = 20, italic = True)
         drawRegularPolygon(328, app.height/2-10, 5, 3, rotateAngle = -90, align = 'center', fill = 'dimGray')
         drawRegularPolygon(528, app.height/2-10, 5, 3, rotateAngle = 90, align = 'center', fill = 'dimGray')
+
+        #longestConsecutiveTime
+        for i in range(3):
+            drawLine(app.width/2+50, 370 + 5*i, app.width/2+70, 370 + 5*i, fill = rgb(200, 200, 200))
+
+        #taskAdd
+        drawCircle(app.width-60, app.height-60, 20, fill = 'tomato')
+        drawLabel('+', app.width-60, app.height-60, size = 60, fill = 'white', align = 'center')
 
     def press(self, app, mouseX, mouseY):
         global month, year
@@ -144,6 +157,59 @@ class CalendarPage:
             else:
                 month = 1
                 year += 1
+        
+        if self.longestConsecutiveTime == True:
+            if not (app.width/2-225 <= mouseX <= app.width/2+225 and 
+                    app.height/2-150 <= mouseY <= app.height+150):
+                self.longestConsecutiveTime = False
+        if self.longestConsecutiveTime == False and (app.width/2+50 <= mouseX <= app.width/2+70 
+                                             and 370 <= mouseY <= 380):
+            self.longestConsecutiveTime = True
+
+        if self.taskAdd == True:
+            if not (app.width/2-225 <= mouseX <= app.width/2+225
+                    and app.height/2-225 <= mouseY <= app.height/2+225):
+                self.taskAdd = False
+        if self.taskAdd == False and (app.width-80 < mouseX < app.width-40 and app.height-80 < mouseY < app.height-40):
+            self.taskAdd = True
+
+class LongestConsecutiveTimePage:
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+        self.labels = ['00', '25', '00']
+        self.positions = []
+        for x in range(-140, 141, 140):
+            self.positions.append((self.width/2+x, self.height/2-50))
+
+    def draw(self, app):
+        drawRect(0, 0, app.width, app.height, fill = 'black', opacity = 40)
+        drawRect(app.width/2, app.height/2, 450, 300, fill = 'white', align = 'center')
+        drawLabel(':   :', app.width/2, app.height/2-50, size = 60, font ='monospace')
+        drawLabel('Longest Consecutive Worktime:', app.width/2, app.height/2-120, size = 20, bold = True, font ='monospace')
+        drawLabel('This function allows the app to',  app.width/2, app.height/2+30, size = 17, align = 'top', font ='monospace')
+        drawLabel('make optimized study plan for you.',  app.width/2, app.height/2+55, size = 17, align = 'top', font ='monospace')
+        drawLabel('A single task exceeding this time will',  app.width/2, app.height/2+80, size = 17, align = 'top', font ='monospace')
+        drawLabel('be allotted at multiple time periods.', app.width/2, app.height/2+105, size = 17, align = 'top', font ='monospace')
+
+        for i in range(3):
+                x, y = self.positions[i]
+                drawRect(x, y, 70, 70, fill=rgb(246, 246, 246), align = 'center')
+                drawLabel(self.labels[i], x, y, size = 50, bold = True, font = 'monospace')
+    
+    def press(self, app, mouseX, mouseY):
+        for i in range(3):
+            buttonX, buttonY = self.positions[i]
+            if buttonX - 35 <= mouseX <= buttonX + 35 and buttonY - 35 <= mouseY <= buttonY + 35:
+                while True:
+                    userinput = app.getTextInput('Enter a number between 0 and 60:')
+                    if userinput.isdigit() and 0 <= int(userinput) <= 60:
+                        if int(userinput) < 10 and userinput[0] != '0':
+                            self.labels[i] = f'0{userinput}'
+                        else:
+                            self.labels[i] = f'{userinput}'
+                        break
+                    else:
+                        userinput = app.getTextInput('Invalid input. Enter a number between 0 and 60:')
 
 class PlannerPage:
     def __init__(self, width, height):
@@ -158,7 +224,6 @@ class TimerPage:
         self.width, self.height = width, height
         self.subjectDict = dict()
         self.subjectAddPage = False
-
 
     def draw(self, app):
         drawRect(0, 330, app.width, app.height-330, fill='white')
@@ -193,7 +258,7 @@ class SubjectAddPage:
         drawRect(0, 0, app.width, app.height, fill = 'black', opacity = 40)
         drawRect(app.width/2, app.height/2, 450, 300, fill = 'white', align = 'center')
         drawRect(app.width/2, app.height/2-100, 350, 50, fill = rgb(246, 246, 246), align = 'center')
-        drawLabel('Subject Name:', app.width/2 - 100, app.height/2-100, font = 'monospace', bold = True, size = 16)
+        drawLabel('Subject Name:', app.width/2 - 100, app.height/2-100, font = 'monospace', size = 16)
         drawLabel(self.subject, app.width/2, app.height/2-100, font = 'monospace', align = 'left', size = 16)
 
         paletteX, paletteY = app.width / 2 - 160, app.height / 2
@@ -228,6 +293,93 @@ class SubjectAddPage:
             self.subject, color = '', None
             app.TimerPage.subjectAddPage = False
 
+class TaskAddPage:
+    def __init__(self, width, height):
+        self.width, self.height = width, height
+        self.startTime = '00:00'
+        self.endTime = '00:00'
+        self.optimizeTime = '00:00'
+        self.title = ''
+        self.optimize = False
+        self.importance = 5
+        self.importanceBar = [0]*10
+
+    def draw(self, app):
+        drawRect(0, 0, app.width, app.height, fill = 'black', opacity = 40)
+        drawRect(app.width/2, app.height/2, 450, 450, fill = 'white', align = 'center')
+        drawRect(app.width/2, app.height/2-160, 400, 70, fill = rgb(246, 246, 246), border = rgb(200, 200, 200), align = 'center')
+        drawLabel('Title:', app.width/2-160, app.height/2-160, size = 16, font ='monospace')
+        drawLabel(self.title, app.width/2-100, app.height/2-160, font = 'monospace', align = 'left', size = 16)
+
+        drawLabel('Let the app optimize the best Time?', app.width/2-200, app.height/2-80, size = 16, font ='monospace', bold = True, align = 'left')
+        drawRect(app.width/2+160, app.height/2-80, 20, 20, fill = None, border = 'black', borderWidth = 0.5, align = 'center')
+        if self.optimize == True:
+            drawLabel('V', app.width/2+160, app.height/2-80, size = 16, fill = 'tomato')
+
+        if self.optimize == False: color = 'black'  
+        else: color = rgb(200, 200, 200)        
+        drawLabel(f'Start Time:', app.width/2-200, app.height/2-30, size = 16, font ='monospace', align = 'left', fill = color)
+        drawRect(app.width/2+160, app.height/2-30, 80, 30, align = 'center', fill = rgb(246, 246, 246), border = rgb(200, 200, 200))
+        drawLabel(self.startTime, app.width/2+160, app.height/2-30, size = 16, font ='monospace', fill = color)
+        drawLabel(f'End Time:', app.width/2-200, app.height/2+10, size = 16, font ='monospace', align = 'left', fill = color)
+        drawRect(app.width/2+160, app.height/2+10, 80, 30, align = 'center', fill = rgb(246, 246, 246), border = rgb(200, 200, 200))
+        drawLabel(self.endTime, app.width/2+160, app.height/2+10, size = 16, font ='monospace', fill = color)
+
+        drawLabel(f'Estimated Time to Finish:', app.width/2-200, app.height/2+50, size = 16, font ='monospace', align = 'left')     
+        drawRect(app.width/2+160, app.height/2+50, 80, 30, align = 'center', fill = rgb(246, 246, 246), border = rgb(200, 200, 200))
+        drawLabel(self.optimizeTime, app.width/2+160, app.height/2+50, size = 16, font ='monospace')
+        
+        drawLabel('importance: ', app.width/2-200, app.height/2+90, size = 16, font ='monospace', align = 'left')
+        drawLabel('1  2  3  4  5  6  7  8  9  10', app.width/2+208, app.height/2+110, size = 11, font = 'monospace', align = 'right')
+        barSize = 20
+        for i in range(10):
+            x = app.width / 2 + 10 + i * barSize
+            y = app.height / 2 + 90
+            color = rgb(246, 246, 246)
+            if self.importanceBar[i]:
+                color = 'tomato'
+            drawRect(x, y, barSize, 20, fill=color, border=rgb(200, 200, 200), align='center')
+            
+    def press(self, app, mouseX, mouseY):
+        if app.width/2 - 200 <= mouseX <= app.width/2 + 200 and app.height/2 - 195 <= mouseY <= app.height/2 -125:
+            self.title = app.getTextInput('Task Title: ')
+        if app.width/2+150 <= mouseX <= app.width/2+170 and app.height/2-90 <= mouseY <= app.height/2-70:
+            self.optimize = not self.optimize
+        if app.width/2+120 <= mouseX <= app.width/2+200 and app.height/2-45 <= mouseY <= app.height/2-15:
+            while True:
+                userInput = app.getTextInput('Write in the format of "00:00"')
+                if self.isValid(userInput):
+                    self.startTime = userInput
+                    break
+        if app.width/2+120 <= mouseX <= app.width/2+200 and app.height/2-5 <= mouseY <= app.height/2+25:
+            while True:
+                userInput = app.getTextInput('Write in the format of "00:00"')
+                if self.isValid(userInput):
+                    self.endTime = userInput
+                    break
+        if app.width/2+120 <= mouseX <= app.width/2+200 and app.height/2+35 <= mouseY <= app.height/2+65:
+            while True:
+                userInput = app.getTextInput('Write in the format of "00:00"')
+                if self.isValid(userInput):
+                    self.optimizeTime = userInput
+                    break
+        if app.width/2+10 <= mouseX <= app.width/2+210 and app.height/2+90 <= mouseY <= app.height/2+110:
+            barIndex = int((mouseX - (app.width/2+10)) / 20)
+            self.importanceBar = [0]*10
+            for i in range(barIndex + 1):
+                self.importanceBar[i] = 1
+
+    def isValid(self, userInput):
+        if len(userInput) != 5:
+            return False
+        if not (userInput[0].isdigit() and userInput[1].isdigit() and userInput[3].isdigit() and userInput[4].isdigit()):
+            return False
+        if not (0 <= int(userInput[0:2]) <= 23 and 0 <= int(userInput[3:]) <= 59):
+            return False
+        if userInput[2] != ':':
+            return False
+        return True
+
 #---Animation functions---------------------------------
 def onAppStart(app):
     app.mainDisplay = True
@@ -237,6 +389,8 @@ def onAppStart(app):
     app.PlannerPage = PlannerPage(app.width, app.height)
     app.CalendarPage = CalendarPage(app.width, app.height)
     app.SubjectAddPage = SubjectAddPage(app.width, app.height)
+    app.LongestConsecutiveTimePage = LongestConsecutiveTimePage(app.width, app.height)
+    app.TaskAddPage = TaskAddPage(app.width, app.height)
 
 def onMousePress(app, mouseX, mouseY):
     app.MainPage.press(app, mouseX, mouseY)
@@ -244,11 +398,14 @@ def onMousePress(app, mouseX, mouseY):
         app.FocusTimePage.press(app, mouseX, mouseY)
     if app.MainPage.calendar:
         app.CalendarPage.press(app, mouseX, mouseY)
+    if app.CalendarPage.longestConsecutiveTime:
+        app.LongestConsecutiveTimePage.press(app, mouseX, mouseY)
     if app.MainPage.timer:
         app.TimerPage.press(app, mouseX, mouseY)
     if app.TimerPage.subjectAddPage:
         app.SubjectAddPage.press(app, mouseX, mouseY)
-        
+    if app.MainPage.taskAdd:
+        app.TaskAddPage.press(app, mouseX, mouseY)
 
 def onStep(app):
     if app.MainPage.focus:
@@ -257,7 +414,7 @@ def onStep(app):
     currentTime = datetime.datetime.now()
     currentTimehour = f'0{currentTime.hour}' if currentTime.hour < 10 else currentTime.hour
     currentTimeminute = f'0{currentTime.minute}' if currentTime.minute < 10 else currentTime.minute
-
+    app.MainPage.taskAdd = app.CalendarPage.taskAdd 
 
 def redrawAll(app):
     app.MainPage.draw(app)
@@ -271,6 +428,9 @@ def redrawAll(app):
         app.FocusTimePage.draw(app)
     if app.TimerPage.subjectAddPage:
         app.SubjectAddPage.draw(app)
-    
+    if app.CalendarPage.longestConsecutiveTime:
+        app.LongestConsecutiveTimePage.draw(app)
+    if app.MainPage.taskAdd:
+        app.TaskAddPage.draw(app)
 
 runApp(width = 1540, height = 800)
