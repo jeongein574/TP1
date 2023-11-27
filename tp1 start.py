@@ -116,6 +116,7 @@ class CalendarPage:
         self.width, self.height = width, height
         self.longestConsecutiveTime = False
         self.taskAdd = False
+        #add a task list
 
     def draw(self, app):
         drawRect(0, 330, app.width, app.height-330, fill='white')
@@ -141,6 +142,10 @@ class CalendarPage:
         #taskAdd
         drawCircle(app.width-60, app.height-60, 20, fill = 'tomato')
         drawLabel('+', app.width-60, app.height-60, size = 60, fill = 'white', align = 'center')
+
+        #task display
+            #task title, allotted time
+            #order of the tasks in the task list may switch according to optimization
 
     def press(self, app, mouseX, mouseY):
         global month, year
@@ -170,8 +175,83 @@ class CalendarPage:
             if not (app.width/2-225 <= mouseX <= app.width/2+225
                     and app.height/2-225 <= mouseY <= app.height/2+225):
                 self.taskAdd = False
+                # if TaskAddPage.optimize == True and optimizeTime != '00:00':
+                    # append the task to the task list as a tuple of (title, True, estimated time to finish, importance)
+                # elif TaskAddPage.optimize == False and startTime != '00:00' and endTime != '00:00'
+                    # append the task to the task list as a tuple of (title, False, start time, end time)
         if self.taskAdd == False and (app.width-80 < mouseX < app.width-40 and app.height-80 < mouseY < app.height-40):
             self.taskAdd = True
+
+    # def optimization
+        # create new lists: optimizeTaskList, noOptimizeTaskList
+        # from task list, if the second elem == True: append the task tuple into optimizeTaskList, else noOptimizeTaskList
+        # set the task list as empty
+        # from the optimizeTaskList, rearrange the tuples according to the order of importance. if same importance, alphabetical order
+        # from the noOptimizeTaskList, rearrange the tuples according to the order ot startTime
+
+        #do backtracking
+            # the tasks in optimizeTaskList cannot have a conflicting study period as other tasks in both optimizeTaskList noOptimizeTaskList
+            # allot the tasks in optimizeTaskList into the available times in between the time now and 24:00, without conflicts with the fixed tasks
+            # if the task hour exceeds the longest consecutive work time, split the task and add long break in between. or add a different task in the next order of importance in between the splited tasks
+        # append each tuple from optimizeTaskList and noOptimizeTaskList into the task list, according to the start and end time
+
+    def optimizeTask(self):
+        optimizeTaskList = []
+        noOptimizeTaskList = []
+
+        for task in self.taskList:
+            if task[1]: 
+                optimizeTaskList.append(task)
+            else:
+                noOptimizeTaskList.append(task)
+
+        self.taskList = []
+
+        optimizeTaskList.sort(key=lambda x: (x[3], x[0]))
+        noOptimizeTaskList.sort(key=lambda x: x[2])
+
+        self.backtrack(self.taskList, optimizeTaskList, noOptimizeTaskList)
+
+    def isLegal(self, schedule, task):
+        # Implement your rules to check if a move is legal
+        # For example, check if the task can be added to the schedule without conflicts
+        # You can also consider the longest consecutive work time, etc.
+        if not task['checked']:
+            return False
+
+        longestConsecutiveWorkTime = app.LongestConsecutiveTimePage.labels
+
+        if task['duration'] > longestConsecutiveWorkTime:
+            return False
+        
+        index = len(schedule)
+        
+        if index > 0 and (schedule[index - 1] == 'break' or schedule[index - 1]['duration'] > longestConsecutiveWorkTime):
+            return False
+        
+        return True
+
+    def backtrack(self, schedule, optimizeTasks, noOptimizeTasks):
+        if not optimizeTasks and not noOptimizeTasks:
+            self.taskList = schedule.copy()
+            return
+
+        else:
+            for task in optimizeTasks:
+                if self.isLegal(schedule, task):
+                    schedule.append(task)
+                    optimizeTasks.remove(task)
+                    self.backtrack(schedule, optimizeTasks, noOptimizeTasks)
+                    schedule.pop()
+                    optimizeTasks.append(task)
+
+            for task in noOptimizeTasks:
+                if self.isLegalMove(schedule, task):
+                    schedule.append(task)
+                    noOptimizeTasks.remove(task)
+                    self.backtrack(schedule, optimizeTasks, noOptimizeTasks)
+                    schedule.pop()
+                    noOptimizeTasks.append(task)
 
 class LongestConsecutiveTimePage:
     def __init__(self, width, height):
@@ -224,17 +304,22 @@ class TimerPage:
         self.width, self.height = width, height
         self.subjectDict = dict()
         self.subjectAddPage = False
+        self.currentSubject = None
+        self.currentTime = datetime.datetime.now()
+        self.timerRun = False
+        self.startTime = 0
+        self.subjectLocation = 470
 
     def draw(self, app):
         drawRect(0, 330, app.width, app.height-330, fill='white')
-        y = 470
+        self.subjectLocation = 470
         for subject in self.subjectDict:
-                color, studyTime = self.subjectDict[subject]
-                drawLabel(subject, app.width/4, y, font = 'monospace', size = 18, align = 'left')
-                drawLabel(studyTime, app.width*3/4, y, font = 'monospace', size = 18, align = 'left')
-                drawCircle(app.width/5, y, 20, fill = color)
-                drawRegularPolygon(app.width/5, y, 10, 3, rotateAngle = 90, fill = 'white', align = 'center')
-                y += 50
+            color, studyTime = self.subjectDict[subject]
+            drawLabel(subject, app.width/4, self.subjectLocation, font = 'monospace', size = 18, align = 'left')
+            drawLabel(studyTime, app.width*3/4, self.subjectLocation, font = 'monospace', size = 18, align = 'left')
+            drawCircle(app.width/5, self.subjectLocation, 20, fill = color)
+            drawRegularPolygon(app.width/5, self.subjectLocation, 10, 3, rotateAngle = 90, fill = 'white', align = 'center')
+            self.subjectLocation += 50
 
         drawRect(app.width/5, 400, 150, 40, fill=rgb(246, 246, 246), align='center')
         drawLabel('+ Subject', app.width/5, 400, font='monospace', size=18)
@@ -244,9 +329,49 @@ class TimerPage:
             if not (app.width/2 - 225 <= mouseX <= app.width/2 +225 and 
                     app.height/2 - 150 <= mouseY <= app.height/2 + 150):
                 self.subjectAddPage = False
+        
         if self.subjectAddPage == False and (app.width/5 - 75 <= mouseX <= app.width/5 + 75 
-                                             and 380 <= mouseY <= 420):
+                                           and 380 <= mouseY <= 420):
             self.subjectAddPage = True
+
+        for subject in self.subjectDict:
+            color, studyTime = self.subjectDict[subject]
+            subjectX, subjectY = app.width/5, self.subjectLocation
+            if (subjectX - 10 <= mouseX <= subjectX + 10 and
+                    subjectY - 10 <= mouseY <= subjectY + 10):
+                if self.currentSubject == subject and self.timerRun:
+                    self.stopTimer()
+                else:
+                    self.startTimer(subject, studyTime)
+                break
+
+    def startTimer(self, subject, studyTime):
+        self.currentSubject = subject
+        self.timerRun = True
+        if not self.startTime:
+            self.startTime = datetime.datetime.now()
+        elapsedTime = self.currentTime - self.startTime
+        self.subjectDict[self.currentSubject][1] = elapsedTime
+
+    def stopTimer(self):
+        if self.timerRun:
+            self.timerRun = False
+            elapsedTime = datetime.datetime.now() - self.startTime
+            passedSeconds = elapsedTime.total_seconds()
+
+            studyTimeHalf = self.subjectDict[self.currentSubject][1].split(':')
+            studyMinutes, studySeconds = int(studyTimeHalf[0]), int(studyTimeHalf[1])
+            totalStudyTime = studyMinutes * 60 + studySeconds
+            updatedTotalStudyTime = totalStudyTime + passedSeconds
+
+            updatedMinutes = int(updatedTotalStudyTime // 60)
+            updatedSeconds = int(updatedTotalStudyTime % 60)
+
+            newTime = f'{updatedMinutes:02d}:{updatedSeconds:02d}'
+            self.subjectDict[self.currentSubject][1] = newTime
+
+            self.currentSubject = None
+            self.startTime = 0
 
 class SubjectAddPage:
     def __init__(self, width, height):
@@ -415,6 +540,9 @@ def onStep(app):
     currentTimehour = f'0{currentTime.hour}' if currentTime.hour < 10 else currentTime.hour
     currentTimeminute = f'0{currentTime.minute}' if currentTime.minute < 10 else currentTime.minute
     app.MainPage.taskAdd = app.CalendarPage.taskAdd 
+
+    if app.TimerPage.timerRun == True:
+        app.TimerPage.currentTime = datetime.datetime.now()
 
 def redrawAll(app):
     app.MainPage.draw(app)
