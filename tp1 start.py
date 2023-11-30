@@ -26,12 +26,11 @@ class MainPage:
     def timerLabel(self, app):
         studyLabelIndex = app.FocusTimePage.studyIndex
         hour, minute, second = app.FocusTimePage.labels[int(studyLabelIndex)*3 : int(studyLabelIndex)*3 + 3]
-        self.studyLabelNum = f'{hour}:{minute}:{second}'
         studyLabels = ['Focus Time', 'Short Break', 'Long Break']
 
         if app.TimerPage.focusTimerRun or app.TimerPage.shortTimerRun or app.TimerPage.longTimerRun:
-            print(True)
             hour, minute, second = int(hour), int(minute), int(second)
+            self.studyLabelNum
             second -= 1
             if second <= 0 and minute <= 0 and hour <= 0:
                 second, minute, hour = 0, 0, 0
@@ -43,7 +42,7 @@ class MainPage:
                 hour -= 1
             if hour < 0:
                 hour = 0
-                
+            
             if hour < 10: timerH = f'0{str(hour)}'
             else: timerH = str(hour)
             if minute < 10: timerM = f'0{str(minute)}'
@@ -51,9 +50,10 @@ class MainPage:
             if second < 10: timerS = f'0{str(second)}'
             else: timerS = str(second)
 
+            app.FocusTimePage.labels[int(studyLabelIndex)*3] = timerH
+            app.FocusTimePage.labels[int(studyLabelIndex)*3+1] = timerM
+            app.FocusTimePage.labels[int(studyLabelIndex)*3+2] = timerS
             self.studyLabelNum = f'{timerH}:{timerM}:{timerS}'
-        else:
-            print(False)
 
         if self.studyLabel == 'Focus Time' and self.studyLabelNum == '00:00:00':
             self.pomodoroList.append('Focus Time')
@@ -61,14 +61,10 @@ class MainPage:
                 app.TimerPage.focusTimerRun, app.TimerPage.shortTimerRun, app.TimerPage.longTimerRun = False, False, True
                 self.pomodoroList = []   
                 studyLabelIndex = 2
-                # self.studyLabel = studyLabels[2]
-                # self.studyLabelNum = f'{app.FocusTimePage.labels[6]}:{app.FocusTimePage.labels[7]}:{app.FocusTimePage.labels[8]}'
             else:
                 app.TimerPage.focusTimerRun, app.TimerPage.shortTimerRun, app.TimerPage.longTimerRun = False, True, False
                 studyLabelIndex = 1
-                # self.studyLabel = studyLabels[1]
-                # self.studyLabelNum = f'{app.FocusTimePage.labels[3]}:{app.FocusTimePage.labels[4]}:{app.FocusTimePage.labels[5]}'
-        elif (self.studyLabel == studyLabels[1] or self.studyLabel == studyLabels[2]) and self.studyLabelNum == '00:00:00':
+        elif (self.studyLabel == 'Short Break' or self.studyLabel == 'Long Break') and self.studyLabelNum == '00:00:00':
             app.TimerPage.focusTimerRun, app.TimerPage.shortTimerRun, app.TimerPage.longTimerRun = False, False, False 
     
     def draw(self, app):
@@ -100,10 +96,10 @@ class MainPage:
             self.timer, self.planner, self.calendar = False, False, True
         if self.focus == True:
             self.timer, self.planner, self.calendar = True, False, False
-            app.TimerPage.focusTimerRun = False
             if not (app.width/2-225 <= mouseX <= app.width/2+225
                     and app.height/2-225 <= mouseY <= app.height/2+225):
                 self.focus = False
+                app.TimerPage.focusTimerRun = False
         if self.focus == False and (930 < mouseX < 1140 and 100 < mouseY < 180):
             self.focus = True
         if app.TimerPage.subjectAddPage == True:
@@ -407,7 +403,7 @@ class TimerPage:
             subjectX, subjectY = app.width/5, location
             if (subjectX - 10 <= mouseX <= subjectX + 10 and
                     subjectY - 10 <= mouseY <= subjectY + 10):
-                if (self.activeSubjectIndex is not None and self.activeSubjectIndex != index) or self.focusTimerRun:
+                if self.focusTimerRun or (self.activeSubjectIndex is not None and self.activeSubjectIndex != index):
                     self.stopTimer() 
                 else:
                     self.startTimer()
@@ -596,7 +592,7 @@ def onStep(app):
     currentTimeminute = f'0{currentTime.minute}' if currentTime.minute < 10 else currentTime.minute
     app.MainPage.taskAdd = app.CalendarPage.taskAdd 
         
-    if app.TimerPage.focusTimerRun and app.TimerPage.activeSubjectIndex is not None:
+    if app.TimerPage.focusTimerRun == True and app.TimerPage.activeSubjectIndex is not None:
         subjectSubList = app.TimerPage.subjectList[app.TimerPage.activeSubjectIndex]
         
         subjectSecond = int(subjectSubList[2][6:])
