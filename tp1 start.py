@@ -1,5 +1,4 @@
 from cmu_graphics import *
-import random
 import datetime
 import calendar
  
@@ -21,16 +20,63 @@ class MainPage:
         self.taskAdd = False
         self.studyLabelNum = '00:25:00'
         self.studyLabel = 'Focus Time'
+        self.mainColor = rgb(246, 246, 246)
+        self.pomodoroList = []
 
     def timerLabel(self, app):
-        studyLabel = app.FocusTimePage.studyLabel
-        hour, minute, second = app.FocusTimePage.labels[studyLabel*3 : studyLabel*3 + 3]
+        studyLabelIndex = app.FocusTimePage.studyIndex
+        hour, minute, second = app.FocusTimePage.labels[int(studyLabelIndex)*3 : int(studyLabelIndex)*3 + 3]
         self.studyLabelNum = f'{hour}:{minute}:{second}'
         studyLabels = ['Focus Time', 'Short Break', 'Long Break']
-        self.studyLabel = studyLabels[studyLabel]
+
+        if app.TimerPage.focusTimerRun or app.TimerPage.shortTimerRun or app.TimerPage.longTimerRun:
+            print(True)
+            hour, minute, second = int(hour), int(minute), int(second)
+            second -= 1
+            if second <= 0 and minute <= 0 and hour <= 0:
+                second, minute, hour = 0, 0, 0
+            if second < 0:
+                second = 59
+                minute -= 1
+            if minute < 0:
+                minute = 59
+                hour -= 1
+            if hour < 0:
+                hour = 0
+                
+            if hour < 10: timerH = f'0{str(hour)}'
+            else: timerH = str(hour)
+            if minute < 10: timerM = f'0{str(minute)}'
+            else: timerM = str(minute)
+            if second < 10: timerS = f'0{str(second)}'
+            else: timerS = str(second)
+
+            self.studyLabelNum = f'{timerH}:{timerM}:{timerS}'
+        else:
+            print(False)
+
+        if self.studyLabel == 'Focus Time' and self.studyLabelNum == '00:00:00':
+            self.pomodoroList.append('Focus Time')
+            if len(self.pomodoroList) == 4: 
+                app.TimerPage.focusTimerRun, app.TimerPage.shortTimerRun, app.TimerPage.longTimerRun = False, False, True
+                self.pomodoroList = []   
+                studyLabelIndex = 2
+                # self.studyLabel = studyLabels[2]
+                # self.studyLabelNum = f'{app.FocusTimePage.labels[6]}:{app.FocusTimePage.labels[7]}:{app.FocusTimePage.labels[8]}'
+            else:
+                app.TimerPage.focusTimerRun, app.TimerPage.shortTimerRun, app.TimerPage.longTimerRun = False, True, False
+                studyLabelIndex = 1
+                # self.studyLabel = studyLabels[1]
+                # self.studyLabelNum = f'{app.FocusTimePage.labels[3]}:{app.FocusTimePage.labels[4]}:{app.FocusTimePage.labels[5]}'
+        elif (self.studyLabel == studyLabels[1] or self.studyLabel == studyLabels[2]) and self.studyLabelNum == '00:00:00':
+            app.TimerPage.focusTimerRun, app.TimerPage.shortTimerRun, app.TimerPage.longTimerRun = False, False, False 
     
     def draw(self, app):
-        drawRect(app.width/2, 0, app.width, app.height//3, align = 'top', fill = rgb(246, 246, 246))
+        if app.TimerPage.focusTimerRun: self.mainColor = rgb(252, 242, 239)
+        if app.TimerPage.shortTimerRun: self.mainColor = rgb(248, 247, 221)
+        if app.TimerPage.longTimerRun: self.mainColor = rgb(231, 243, 232)
+            
+        drawRect(app.width/2, 0, app.width, app.height//3, align = 'top', fill = self.mainColor)
         drawLine(0, 330, app.width, 330, fill = rgb(246, 246, 246))
         drawLabel(f'{currentTime.month}/{currentTime.day}/{currentTime.year}', app.width//2, 50, size = 22, font ='monospace')
         drawLabel(self.studyLabel, app.width*2/3, 100, size = 18, bold = True, font = 'monospace')
@@ -53,6 +99,8 @@ class MainPage:
         if 1105 <= mouseX <= 1205 and 270 <= mouseY <= 330:
             self.timer, self.planner, self.calendar = False, False, True
         if self.focus == True:
+            self.timer, self.planner, self.calendar = True, False, False
+            app.TimerPage.focusTimerRun = False
             if not (app.width/2-225 <= mouseX <= app.width/2+225
                     and app.height/2-225 <= mouseY <= app.height/2+225):
                 self.focus = False
@@ -61,7 +109,7 @@ class MainPage:
         if app.TimerPage.subjectAddPage == True:
             self.timer, self.planner, self.calendar = True, False, False
         if app.CalendarPage.longestConsecutiveTime == True:
-            self.timer, self.planner, self.calendar = False, False, True
+            self.timer, self.planner, self.calendar = False, False, True      
 
 class FocusTimePage:
     def __init__(self, width, height):
@@ -72,7 +120,7 @@ class FocusTimePage:
             '00', '10', '00'   # long
         ]
         
-        self.studyLabel = 0
+        self.studyIndex = 0
         self.buttonPositions = []
 
         for y in range(-140, 141, 140):
@@ -102,11 +150,11 @@ class FocusTimePage:
                 while True:
                     userinput = app.getTextInput('Enter a number between 0 and 59:')
                     if userinput.isdigit() and 0 <= int(userinput) <= 59:
-                        if int(userinput) < 10 and userinput[0] != '0':
+                        if int(userinput) < 10:
                             self.labels[i] = f'0{userinput}'
                         else:
                             self.labels[i] = f'{userinput}'
-                        self.studyLabel = i // 3
+                        self.studyIndex = i // 3
                         break
                     else:
                         userinput = app.getTextInput('Invalid input. Enter a number between 0 and 60:')
@@ -116,7 +164,8 @@ class CalendarPage:
         self.width, self.height = width, height
         self.longestConsecutiveTime = False
         self.taskAdd = False
-        #add a task list
+        self.taskList = []
+        self.schedule = []
 
     def draw(self, app):
         drawRect(0, 330, app.width, app.height-330, fill='white')
@@ -146,7 +195,13 @@ class CalendarPage:
         #task display
             #task title, allotted time
             #order of the tasks in the task list may switch according to optimization
-
+        taskLocation = 470
+        for task in self.schedule:
+            taskTitle, startTime, endTime = task[0], task[1], task[2]
+            drawLabel(taskTitle, app.width/2+100, taskLocation, font = 'monospace', size = 18, align = 'left')
+            drawLabel(f'{startTime} - {endTime}', app.width-100, taskLocation, font = 'monospace', size = 18, align = 'right')
+            taskLocation += 50
+    
     def press(self, app, mouseX, mouseY):
         global month, year
         if 318 <= mouseX <= 338 and 380 <= mouseY <= 400:
@@ -179,8 +234,13 @@ class CalendarPage:
                     # append the task to the task list as a tuple of (title, True, estimated time to finish, importance)
                 # elif TaskAddPage.optimize == False and startTime != '00:00' and endTime != '00:00'
                     # append the task to the task list as a tuple of (title, False, start time, end time)
+                if app.TaskAddPage.optimize == True and app.TaskAddPage.optimizeTime != '00:00':
+                    self.taskList.append((app.TaskAddPage.title, True, app.TaskAddPage.optimizeTime, app.TaskAddPage.importance))
+                elif app.TaskAddPage.optimize == False and app.TaskAddPage.startTime != '00:00' and app.TaskAddPage.endTime != '00:00':
+                    self.taskList.append((app.TaskAddPage.title, False, app.TaskAddPage.startTime, app.TaskAddPage.endTime))
         if self.taskAdd == False and (app.width-80 < mouseX < app.width-40 and app.height-80 < mouseY < app.height-40):
             self.taskAdd = True
+            self.optimizeTask()
 
     # def optimization
         # create new lists: optimizeTaskList, noOptimizeTaskList
@@ -198,17 +258,18 @@ class CalendarPage:
     def optimizeTask(self):
         optimizeTaskList = []
         noOptimizeTaskList = []
+        optimizeSchedule = []
 
         for task in self.taskList:
-            if task[1]: 
+            if task[1] == True: 
                 optimizeTaskList.append(task)
-            else:
+            elif task[1] == False:
                 noOptimizeTaskList.append(task)
 
         self.taskList = []
 
-        optimizeTaskList.sort(key=lambda x: (x[3], x[0]))
-        noOptimizeTaskList.sort(key=lambda x: x[2])
+        optimizeTaskList.sort(key=lambda x: (x[3], x[0])) # importance, or alphabetical
+        noOptimizeTaskList.sort(key=lambda x: x[2]) # startTime
 
         self.backtrack(self.taskList, optimizeTaskList, noOptimizeTaskList)
 
@@ -233,8 +294,7 @@ class CalendarPage:
 
     def backtrack(self, schedule, optimizeTasks, noOptimizeTasks):
         if not optimizeTasks and not noOptimizeTasks:
-            self.taskList = schedule.copy()
-            return
+            pass
 
         else:
             for task in optimizeTasks:
@@ -302,24 +362,30 @@ class PlannerPage:
 class TimerPage:
     def __init__(self, width, height):
         self.width, self.height = width, height
-        self.subjectDict = dict()
+        self.subjectList = []
         self.subjectAddPage = False
-        self.currentSubject = None
-        self.currentTime = datetime.datetime.now()
-        self.timerRun = False
+        self.focusTimerRun = False
+        self.shortTimerRun = False
+        self.longTimerRun = False
         self.startTime = 0
-        self.subjectLocation = 470
+        self.activeSubjectIndex = None
 
     def draw(self, app):
         drawRect(0, 330, app.width, app.height-330, fill='white')
-        self.subjectLocation = 470
-        for subject in self.subjectDict:
-            color, studyTime = self.subjectDict[subject]
-            drawLabel(subject, app.width/4, self.subjectLocation, font = 'monospace', size = 18, align = 'left')
-            drawLabel(studyTime, app.width*3/4, self.subjectLocation, font = 'monospace', size = 18, align = 'left')
-            drawCircle(app.width/5, self.subjectLocation, 20, fill = color)
-            drawRegularPolygon(app.width/5, self.subjectLocation, 10, 3, rotateAngle = 90, fill = 'white', align = 'center')
-            self.subjectLocation += 50
+        for subjectSubList in self.subjectList:
+            subject, color, studyTime, location = subjectSubList[0], subjectSubList[1], subjectSubList[2], subjectSubList[3]
+            index = self.subjectList.index(subjectSubList)
+            location += 50*index
+
+            drawLabel(subject, app.width/4, location, font = 'monospace', size = 18, align = 'left')
+            drawLabel(studyTime, app.width*3/4, location, font = 'monospace', size = 18, align = 'left')
+            drawCircle(app.width/5, location, 20, fill = color)
+            if self.focusTimerRun and self.subjectList.index(subjectSubList) == self.activeSubjectIndex:
+                drawRect(app.width/5, location, 12, 12, fill = 'white', align = 'center')
+                drawRect(app.width/5, location, 3, 12, fill = color, align = 'center')
+            else:
+                drawRegularPolygon(app.width/5, location, 10, 3, rotateAngle = 90, fill = 'white', align = 'center')
+                
 
         drawRect(app.width/5, 400, 150, 40, fill=rgb(246, 246, 246), align='center')
         drawLabel('+ Subject', app.width/5, 400, font='monospace', size=18)
@@ -334,44 +400,25 @@ class TimerPage:
                                            and 380 <= mouseY <= 420):
             self.subjectAddPage = True
 
-        for subject in self.subjectDict:
-            color, studyTime = self.subjectDict[subject]
-            subjectX, subjectY = app.width/5, self.subjectLocation
+        for subjectSubList in self.subjectList:
+            location = subjectSubList[3]
+            index = self.subjectList.index(subjectSubList)
+            location += 50*index
+            subjectX, subjectY = app.width/5, location
             if (subjectX - 10 <= mouseX <= subjectX + 10 and
                     subjectY - 10 <= mouseY <= subjectY + 10):
-                if self.currentSubject == subject and self.timerRun:
-                    self.stopTimer()
+                if (self.activeSubjectIndex is not None and self.activeSubjectIndex != index) or self.focusTimerRun:
+                    self.stopTimer() 
                 else:
-                    self.startTimer(subject, studyTime)
+                    self.startTimer()
+                self.activeSubjectIndex = index
                 break
 
-    def startTimer(self, subject, studyTime):
-        self.currentSubject = subject
-        self.timerRun = True
-        if not self.startTime:
-            self.startTime = datetime.datetime.now()
-        elapsedTime = self.currentTime - self.startTime
-        self.subjectDict[self.currentSubject][1] = elapsedTime
+    def startTimer(self):
+        self.focusTimerRun = True
 
     def stopTimer(self):
-        if self.timerRun:
-            self.timerRun = False
-            elapsedTime = datetime.datetime.now() - self.startTime
-            passedSeconds = elapsedTime.total_seconds()
-
-            studyTimeHalf = self.subjectDict[self.currentSubject][1].split(':')
-            studyMinutes, studySeconds = int(studyTimeHalf[0]), int(studyTimeHalf[1])
-            totalStudyTime = studyMinutes * 60 + studySeconds
-            updatedTotalStudyTime = totalStudyTime + passedSeconds
-
-            updatedMinutes = int(updatedTotalStudyTime // 60)
-            updatedSeconds = int(updatedTotalStudyTime % 60)
-
-            newTime = f'{updatedMinutes:02d}:{updatedSeconds:02d}'
-            self.subjectDict[self.currentSubject][1] = newTime
-
-            self.currentSubject = None
-            self.startTime = 0
+        self.focusTimerRun = False
 
 class SubjectAddPage:
     def __init__(self, width, height):
@@ -413,8 +460,15 @@ class SubjectAddPage:
             if paletteX > app.width/2 + 160:
                 paletteX = app.width/2 - 160
                 paletteY += 80
-        if self.subject != '' and selectedColor != None and self.subject not in app.TimerPage.subjectDict:
-            app.TimerPage.subjectDict[self.subject] = [selectedColor, '00:00:00']
+        
+        subjectExist = False
+        for subjectSubList in app.TimerPage.subjectList:
+            if self.subject == subjectSubList[0]:
+                subjectExist = True
+                break
+        
+        if self.subject != '' and selectedColor != None and subjectExist == False:
+            app.TimerPage.subjectList.append([self.subject, selectedColor, '00:00:00', 470])
             self.subject, color = '', None
             app.TimerPage.subjectAddPage = False
 
@@ -507,6 +561,8 @@ class TaskAddPage:
 
 #---Animation functions---------------------------------
 def onAppStart(app):
+    app.stepsPerSecond = 1
+    app.timerCount = 0
     app.mainDisplay = True
     app.MainPage = MainPage(app.width, app.height)
     app.FocusTimePage = FocusTimePage(app.width, app.height)
@@ -533,16 +589,36 @@ def onMousePress(app, mouseX, mouseY):
         app.TaskAddPage.press(app, mouseX, mouseY)
 
 def onStep(app):
-    if app.MainPage.focus:
-        app.MainPage.timerLabel(app)
+    app.MainPage.timerLabel(app)
     global currentTime, currentTimehour, currentTimeminute
     currentTime = datetime.datetime.now()
     currentTimehour = f'0{currentTime.hour}' if currentTime.hour < 10 else currentTime.hour
     currentTimeminute = f'0{currentTime.minute}' if currentTime.minute < 10 else currentTime.minute
     app.MainPage.taskAdd = app.CalendarPage.taskAdd 
+        
+    if app.TimerPage.focusTimerRun and app.TimerPage.activeSubjectIndex is not None:
+        subjectSubList = app.TimerPage.subjectList[app.TimerPage.activeSubjectIndex]
+        
+        subjectSecond = int(subjectSubList[2][6:])
+        subjectMinute = int(subjectSubList[2][3:5])
+        subjectHour = int(subjectSubList[2][0:2])
+        
+        subjectSecond += 1
+        if subjectSecond >= 60:
+            subjectSecond = 0
+            subjectMinute += 1
+        if subjectMinute >= 60:
+            subjectMinute = 0
+            subjectHour += 1
 
-    if app.TimerPage.timerRun == True:
-        app.TimerPage.currentTime = datetime.datetime.now()
+        if subjectHour < 10: studyHour = f'0{str(subjectHour)}'
+        else: studyHour = str(subjectHour)
+        if subjectMinute < 10: studyMinute = f'0{str(subjectMinute)}'
+        else: studyMinute = str(subjectMinute)
+        if subjectSecond < 10: studySecond = f'0{str(subjectSecond)}'
+        else: studySecond = str(subjectSecond)
+
+        subjectSubList[2] = f'{studyHour}:{studyMinute}:{studySecond}'
 
 def redrawAll(app):
     app.MainPage.draw(app)
